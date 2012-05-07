@@ -33,9 +33,9 @@ public class PushService extends Service {
     /* CONSTANTS */
     /************************************************************************/
     private String TAG = "com.wangchao.livestream";
-    private boolean DEBUG = true;
 
-    public static final String HOST_URL_PUSHMESSAGE = "your stream api host here";
+    public static final String HOST_URL_PUSHMESSAGE = "http://5.5.5.121:8081/";
+
     /************************************************************************/
     /* Action when state changes */
     /************************************************************************/
@@ -43,6 +43,7 @@ public class PushService extends Service {
     public static final String ACTION_PUSHSERVICE_START = "com.wangchao.action.pushservice.start";
     public static final String ACTION_PUSHSERVICE_STOP = "com.wangchao.action.pushservice.stop";
 
+    public static final String ACTION_ALARM_RECEIVE = "com.wangchao.action.alerm";
     /************************************************************************/
     /* Message represent service states changed */
     /************************************************************************/
