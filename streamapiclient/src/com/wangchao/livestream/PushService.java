@@ -3,6 +3,7 @@ package com.wangchao.livestream;
 
 import com.wangchao.livestream.util.Tools;
 
+import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -13,6 +14,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
+import android.os.SystemClock;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -88,7 +90,15 @@ public class PushService extends Service {
 
         super.onCreate();
 
-        Tools.debugLog(TAG, "Service on create");
+        Tools.debugLog(TAG, "Service on create , Start AlarmManager");
+
+        Intent in = new Intent(this, AlarmReceiver.class);
+        in.setAction(PushService.ACTION_ALARM_RECEIVE);
+        PendingIntent sender = PendingIntent.getBroadcast(this, 0, in, 0);
+        long firstime = SystemClock.elapsedRealtime();
+        AlarmManager am = (AlarmManager) this.getSystemService(Context.ALARM_SERVICE);
+
+        am.setRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, firstime, 10 * 1000, sender);
     }
 
     @Override
@@ -184,7 +194,7 @@ public class PushService extends Service {
     }
 
     /**
-     * Notify the change-receivers that something has changed.
+     * Notify the change-receivers that something has changed. *
      * 
      * @param what
      * @author wangchao
@@ -201,7 +211,7 @@ public class PushService extends Service {
     /************************************************************************/
 
     /**
-     * Thread run background as pesistente tcp/ip to receive push message
+     * Thread run background as pesistente tcp/ip to receive push message*
      * 
      * @author wangchao
      */
@@ -211,16 +221,23 @@ public class PushService extends Service {
         public void run() {
 
             Tools.debugLog(TAG, "ReceiveThread run");
+            URL url;
+            URLConnection urlConnection;
+            InputStream in;
+            BufferedReader reader;
             try {
-                URL url = new URL(HOST_URL_PUSHMESSAGE);
-                URLConnection urlConnection = url.openConnection();
-                InputStream in = (InputStream) urlConnection.getContent();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+                url = new URL(HOST_URL_PUSHMESSAGE);
+                urlConnection = url.openConnection();
+                in = (InputStream) urlConnection.getContent();
+                reader = new BufferedReader(new InputStreamReader(in));
                 parseMessage(reader);
                 Tools.debugLog(TAG, "Service parseMessage done");
                 in.close();
             } catch (Exception e) {
                 Tools.debugLog(TAG, "ReceiveThread: " + e.toString());
+
+                // Restart when Exception happen
+                restartThread();
             }
         }
 
@@ -242,6 +259,10 @@ public class PushService extends Service {
                     mHandler.sendMessage(msg);
                 } catch (IOException e) {
                     Tools.debugLog(TAG, "ParseMessage: " + e.toString());
+
+                    // Restart when IOException happen
+                    restartThread();
+
                 }
 
             } while (mKeepRunning && line.length() > 0);
@@ -264,5 +285,21 @@ public class PushService extends Service {
             mReceiveThread = null;
             moribund.interrupt();
         }
+    }
+
+    public synchronized void restartThread() {
+
+        if (mKeepRunning) {
+            mKeepRunning = false;
+            stopThread();
+            notifyChange(ACTION_PUSHSERVICE_STOP, null);
+        }
+
+        if (!mKeepRunning) {
+            mKeepRunning = true;
+            startThread();
+            notifyChange(ACTION_PUSHSERVICE_START, null);
+        }
+
     }
 }

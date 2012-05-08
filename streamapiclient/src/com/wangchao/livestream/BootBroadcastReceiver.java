@@ -1,6 +1,8 @@
 
 package com.wangchao.livestream;
 
+import com.wangchao.livestream.util.Tools;
+
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
@@ -9,9 +11,15 @@ import android.content.Intent;
 import android.os.SystemClock;
 
 public class BootBroadcastReceiver extends BroadcastReceiver {
+    /************************************************************************/
+    /* CONSTANTS */
+    /************************************************************************/
+    private String TAG = "com.wangchao.livestream";
 
     @Override
     public void onReceive(Context context, Intent intent) {
+
+        Tools.debugLog(TAG, "BootBroadcastReceiver: onReceive");
 
         if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
             Intent in = new Intent(context, AlarmReceiver.class);
