@@ -20,8 +20,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLConnection;
 import java.util.ArrayList;
 
 /**
@@ -131,6 +132,12 @@ public class PushService extends Service {
     @Override
     public void onDestroy() {
 
+        if (mKeepRunning) {
+            mKeepRunning = false;
+            stopThread();
+            notifyChange(ACTION_PUSHSERVICE_STOP, null);
+            Tools.debugLog(TAG, "PushService:" + "onDestroy()");
+        }
         super.onDestroy();
     }
 
@@ -216,29 +223,49 @@ public class PushService extends Service {
      * @author wangchao
      */
     private class ReceiveThread extends Thread {
+        URL url;
+        HttpURLConnection urlConnection;
+        InputStream in;
+        BufferedReader reader;
+
+        @Override
+        public void interrupt() {
+
+            // TODO Close all connctions
+            Tools.debugLog(TAG, "ReceiveThread interrupt()");
+            if (urlConnection != null) {
+                urlConnection.disconnect();
+                Tools.debugLog(TAG, "ReceiveThread HttpURLConnection disconnect()");
+            }
+            super.interrupt();
+        }
 
         @Override
         public void run() {
 
             Tools.debugLog(TAG, "ReceiveThread run");
-            URL url;
-            URLConnection urlConnection;
-            InputStream in;
-            BufferedReader reader;
+
             try {
                 url = new URL(HOST_URL_PUSHMESSAGE);
-                urlConnection = url.openConnection();
+                urlConnection = (HttpURLConnection) url.openConnection();
+                urlConnection.setRequestProperty("Connection", "keep-alive");
                 in = (InputStream) urlConnection.getContent();
                 reader = new BufferedReader(new InputStreamReader(in));
                 parseMessage(reader);
                 Tools.debugLog(TAG, "Service parseMessage done");
                 in.close();
-            } catch (Exception e) {
-                Tools.debugLog(TAG, "ReceiveThread: " + e.toString());
+                reader.close();
+            } catch (MalformedURLException e1) {
+                Tools.debugLog(TAG, "ReceiveThread: " + e1.toString());
+            } catch (IOException e1) {
+                Tools.debugLog(TAG, "ReceiveThread: " + e1.toString());
 
                 // Restart when Exception happen
                 restartThread();
+            } finally {
+                urlConnection.disconnect();
             }
+
         }
 
         private void parseMessage(BufferedReader reader) {
@@ -289,6 +316,7 @@ public class PushService extends Service {
 
     public synchronized void restartThread() {
 
+        Tools.debugLog(TAG, "Thread restart()");
         if (mKeepRunning) {
             mKeepRunning = false;
             stopThread();
